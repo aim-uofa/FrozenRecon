@@ -13,7 +13,7 @@
 <sup>2</sup>DJI Technology &nbsp;&nbsp; 
 <sup>3</sup>Zhejiang University
 
-### [Project Page](https://aim-uofa.github.io/FrozenRecon/) | [arXiv]()
+### [Project Page](https://aim-uofa.github.io/FrozenRecon/) | [arXiv](https://arxiv.org/abs/2308.05733)
 
 
 </div>
