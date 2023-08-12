@@ -44,7 +44,8 @@ Given a monocular video, we use a frozen robust monocular depth estimation model
 
 ## 🎫 License
 
-The content of this project itself is licensed under [LICENSE](LICENSE).
+For non-commercial use, this code is released under the [LICENSE](LICENSE).
+For commercial use, please contact Chunhua Shen.
 
 ## 🖊️ Citation
 
@@ -56,7 +57,7 @@ If you find this project useful in your research, please consider cite:
 @inproceedings{xu2023frozenrecon,
   title={Pose-free 3D Scene Reconstruction with Frozen Depth Models},
   author={Xu, Guangkai and Yin, Wei and Chen, Hao and Shen, Chunhua and Cheng, Kai and Zhao, Feng},
-  journal={ICCV},
+  journal={Proc. Int. Conf. Computer Vision},
   year={2023}
 }
 ```
