@@ -3,10 +3,10 @@
 <h1>FrozenRecon: Pose-free 3D Scene Reconstruction with Frozen Depth Models </h1>
 
 [Guangkai Xu](https://github.com/guangkaixu/)<sup>1*</sup>, &nbsp; 
-[Wei Yin](https://yvanyin.net/)<sup>1*</sup>, &nbsp; 
-[Hao Chen](https://stan-haochen.github.io/)<sup>1*</sup>, &nbsp;
-[Chunhua Shen](https://cshen.github.io/)<sup>1</sup>, &nbsp;
-[Kai Cheng](https://cklibra.github.io/)<sup>2</sup>, &nbsp;
+[Wei Yin](https://yvanyin.net/)<sup>2*</sup>, &nbsp; 
+[Hao Chen](https://stan-haochen.github.io/)<sup>3</sup>, &nbsp;
+[Chunhua Shen](https://cshen.github.io/)<sup>3</sup>, &nbsp;
+[Kai Cheng](https://cklibra.github.io/)<sup>1</sup>, &nbsp;
 [Feng Zhao](https://scholar.google.co.uk/citations?user=r6CvuOUAAAAJ&hl=en/)<sup>1</sup>
 
 <sup>1</sup>University of Science and Technology of China &nbsp;&nbsp; 
