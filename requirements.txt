@@ -1,0 +1,15 @@
+matplotlib
+opencv-python
+plyfile
+scipy
+tqdm
+xlwt
+numpy==1.21.0
+numba
+scikit-image==0.16.2
+pycuda
+logger
+open3d
+path
+kornia==0.6.7
+pykitti

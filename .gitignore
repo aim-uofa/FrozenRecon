@@ -1,0 +1,12 @@
+*.pth
+*.jpg
+*.npy
+*.png
+*.ply
+*.mp4
+*.MOV
+core.*
+*__pycache__*
+.vscode*
+outputs/*
+datasets/*
