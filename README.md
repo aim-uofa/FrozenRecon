@@ -16,7 +16,7 @@
 
 ### [Project Page](https://aim-uofa.github.io/FrozenRecon/) | [arXiv](https://arxiv.org/abs/2308.05733) | [Paper](https://openaccess.thecvf.com/content/ICCV2023/papers/Xu_FrozenRecon_Pose-free_3D_Scene_Reconstruction_with_Frozen_Depth_Models_ICCV_2023_paper.pdf) | [Supplementary](https://openaccess.thecvf.com/content/ICCV2023/supplemental/Xu_FrozenRecon_Pose-free_3D_ICCV_2023_supplemental.pdf)
 
-#### ⏳ Reconstructs your pose-free video with 🧊 FrozenRecon in around a quarter of an hour! ⌛
+#### ⏳ Reconstruct your pose-free video with 🧊 FrozenRecon in around a quarter of an hour! ⌛
 </div>
 <div align="center">
 <img width="800" alt="image" src="figs/frozenrecon-demo.png">
@@ -26,12 +26,19 @@ We propose a novel test-time optimization approach that can transfer the robustn
 
 ## Prerequisite
 
+### Pre-trained Checkpoints
+In this project, we use LeReS to predict affine-invariant depth maps. Please download the pre-trained [checkpoint](https://pan.baidu.com/s/1o2oVMiLRu770Fdpa65Pdbw?pwd=g3yi) of [LeReS](https://github.com/aim-uofa/AdelaiDepth/tree/main), and place it in `FrozenRecon/LeReS/res101.pth`. If optimize outdoor scenes, the [checkpoint](https://connecthkuhk-my.sharepoint.com/:f:/g/personal/xieenze_connect_hku_hk/Ept_oetyUGFCsZTKiL_90kUBy5jmPV65O5rJInsnRCDWJQ?e=CvGohw) of [Segformer](https://github.com/NVlabs/SegFormer) should also be downloaded and placed in `FrozenRecon/SegFormer/segformer.b3.512x512.ade.160k.pth`
+
+### Demo Data
+We provide one demo data for each scene, and another in-the-wild video captured from iPhone14 Pro without any lidar sensor information. Download from [BaiduNetDisk](https://pan.baidu.com/s/1bSH8G0-ZQ8LpytZdZ6zIQw?pwd=e6hc), and place it in `FrozenRecon/demo_data`.
+
+### Installation
 ```bash
 git clone --recursive https://github.com/aim-uofa/FrozenRecon.git
 cd FrozenRecon
-conda create -n frozenrecon python=3.8.16
+conda create -y -n frozenrecon python=3.8
 conda activate frozenrecon
-pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+pip install torch==1.8.0+cu111 torchvision==0.9.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
 pip install -r requirements.txt
 
 # (Optional) For outdoor scenes, we recommand to mask the sky regions and cars (potential dynamic objects)
@@ -39,19 +46,23 @@ pip install --upgrade mmcv-full==1.3.0 -f https://download.openmmlab.com/mmcv/di
 pip install "mmsegmentation==0.11.0"
 pip install timm==0.3.2
 git clone https://github.com/NVlabs/SegFormer.git
-cd SegFormer && pip install -e .
+cd SegFormer && pip install -e . & cd ..
 # After installing SegFormer, please downlaod segformer.b3.512x512.ade.160k.pth checkpoint following https://github.com/NVlabs/SegFormer, and place it in SegFormer/
 
 # (Optional) Install lietorch. It can make optimization faster.
 git clone --recursive https://github.com/princeton-vl/lietorch.git
-cd lietorch && python setup.py install
+cd lietorch && python setup.py install & cd ..
 ```
 
 ## Optimization
 
 ### 1. In-the-wild Video Input
 ```bash
-python src/optimize.py --video_path PATH_TO_VIDEO --scene_name SCENE_NAME
+# Take demo data as an example
+python src/optimize.py --video_path demo_data/IMG_8765.MOV
+
+# # For self-captured videos
+# python src/optimize.py --video_path PATH_TO_VIDEO --scene_name SCENE_NAME
 ```
 
 ### 2. In-the-wild Extracted Images Input
@@ -62,7 +73,7 @@ python src/optimize.py --img_root PATH_TO_IMG_FOLDER --scene_name SCENE_NAME
 ### 3. Datasets (Optional with GT Priors)
 ```bash
 # Export ground-truth data root here.
-export GT_ROOT='PATH_TO_GT_DATA_ROOT'
+export GT_ROOT='./demo_data' # PATH_TO_GT_DATA_ROOT, you can download demo_data following "Data" subsection.
 
 # FrozenRecon with datasets, take NYUDepthVideo classroom_0004 as example.
 python src/optimize.py --dataset_name NYUDepthVideo --gt_root $GT_ROOT --scene_name classroom_0004 
@@ -79,7 +90,7 @@ python src/optimize.py --dataset_name NYUDepthVideo --gt_root $GT_ROOT --gt_intr
 
 ### 4. Outdoor Scenes
 ```bash
-export GT_ROOT='PATH_TO_GT_DATA_ROOT'
+export GT_ROOT='./demo_data' # PATH_TO_GT_DATA_ROOT, you can download demo_data following "Data" subsection.
 # We suggest to use GT intrinsic for stable optimization.
 python src/optimize.py --dataset_name NYUDepthVideo --scene_name SCENE_NAME --gt_root $GT_ROOT --gt_intrinsic_flag --scene_name 2011_09_26_drive_0001_sync --outdoor_scenes 
 ```

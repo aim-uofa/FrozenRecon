@@ -207,8 +207,10 @@ class FrozenRecon:
         demo_img = cv2.imread(self.rgb_paths[0]).astype(np.float32)
         h, w, _ = demo_img.shape
         self.h = h; self.w = w
-        h_new, w_new = self.args.resize_shape
-        self.h_new = h_new; self.w_new = w_new
+
+        resize_ratio = max(self.args.resize_shape / self.h, self.args.resize_shape / self.w)
+        self.h_optim = int(resize_ratio * self.h)
+        self.w_optim = int(resize_ratio * self.w)
 
         # 1. read LeReS features and downsample frames according to the customized similarity
         if not self.args.outdoor_scenes:
@@ -244,7 +246,12 @@ class FrozenRecon:
             ) for path in self.rgb_paths
         ], dim=0) # [n, 3, h, w]
 
-        self.rgb_imgs = F.interpolate(self.rgb_imgs_wo_resize_cpu, (h_new, w_new), mode='nearest').cuda()
+        self.recon_ratio = min(self.w_optim / args.recon_shape, self.h_optim / args.recon_shape)
+        self.w_recon = int(self.w_optim / self.recon_ratio);  self.h_recon = int(self.h_optim / self.recon_ratio)
+
+        self.rgb_imgs_recon_cpu = F.interpolate(self.rgb_imgs_wo_resize_cpu, (self.h_recon, self.w_recon), mode='bilinear')
+        self.rgb_imgs = F.interpolate(self.rgb_imgs_wo_resize_cpu, (self.h_optim, self.w_optim), mode='bilinear').cuda()
+        del self.rgb_imgs_wo_resize_cpu
 
         ## imgs guassian noise with guass_sigma
         if self.args.guass_sigma != 0:
@@ -270,7 +277,7 @@ class FrozenRecon:
             elif self.args.dataset_name == 'TUM':
                 gt_loader = TUM_Loader(osp.join(args.gt_root, args.dataset_name))
             elif self.args.dataset_name == 'KITTI':
-                gt_loader = KITTIDepthVideo_Loader('/mnt/nas/datasets2/MetricDepth/kitti/kitti/', scene_names_list=[args.scene_name])
+                gt_loader = KITTIDepthVideo_Loader(osp.join(args.gt_root, args.dataset_name), scene_names_list=[args.scene_name])
             else:
                 raise ValueError
             
@@ -288,7 +295,9 @@ class FrozenRecon:
                 print('loading gt intrinsic...')
             if self.args.gt_depth_flag:
                 self.gt_depths_wo_resize_cpu = torch.from_numpy(gt_data_info['depths'])[:, None]
-                self.gt_depths = F.interpolate(self.gt_depths_wo_resize_cpu, (h_new, w_new), mode='nearest').cuda()
+                self.gt_depths_recon_cpu = F.interpolate(self.gt_depths_wo_resize_cpu, (self.h_recon, self.w_recon), mode='nearest')
+                self.gt_depths = F.interpolate(self.gt_depths_wo_resize_cpu, (self.h_optim, self.w_optim), mode='nearest').cuda()
+                del self.gt_depths_wo_resize_cpu
                 print('loading gt depth...')
             
             ## copy ground-truth depth to FrozenRecon/datasets if provided
@@ -305,8 +314,9 @@ class FrozenRecon:
                     np.load(osp.join(self.data_root, 'pred_depth_npy', image_id + '-depth.npy')).astype(np.float32),
                     )[None, ...] for image_id in self.image_ids
                 ], dim=0).float().cuda()
-
-            self.mono_depths = F.interpolate(self.mono_depths_wo_resize, (h_new, w_new), mode='nearest')
+            self.mono_depths_recon = F.interpolate(self.mono_depths_wo_resize, (self.h_recon, self.w_recon), mode='bilinear')
+            self.mono_depths = F.interpolate(self.mono_depths_wo_resize, (self.h_optim, self.w_optim), mode='bilinear')
+            del self.mono_depths_wo_resize
 
         # 5. load invalid masks if outdoor_scenes
         if self.args.outdoor_scenes and mmseg_import_flag:
@@ -329,7 +339,7 @@ class FrozenRecon:
                 torch.from_numpy(
                     cv2.resize(
                         np.load(path.replace('/rgb/', '/seg_invalid_masks/').replace('.jpg', '.npy').replace('.png', '.npy')).astype(np.float32),
-                        (w_new, h_new),
+                        (self.w_optim, self.h_optim),
                         cv2.INTER_NEAREST
                     ))[None, ...].cuda() for path in self.rgb_paths
                 ], dim=0).float()
@@ -346,11 +356,11 @@ class FrozenRecon:
             self.image_ids = [id for i, id in enumerate(self.image_ids) if pred_valid_mask[i]]
             assert self.image_ids == sampled_filtered_ids
             self.rgb_paths = [path for i, path in enumerate(self.rgb_paths) if pred_valid_mask[i]]
-            self.rgb_imgs_wo_resize_cpu = self.rgb_imgs_wo_resize_cpu[pred_valid_mask]
+            self.rgb_imgs_recon_cpu = self.rgb_imgs_recon_cpu[pred_valid_mask]
             self.rgb_imgs = self.rgb_imgs[pred_valid_mask]
             self.image_ids_indexes = np.array([self.image_ids_all.index(id) for id in sampled_filtered_ids])
             if not self.args.gt_depth_flag:
-                self.mono_depths_wo_resize = self.mono_depths_wo_resize[pred_valid_mask]
+                self.mono_depths_recon = self.mono_depths_recon[pred_valid_mask]
                 self.mono_depths = self.mono_depths[pred_valid_mask]
                 
         self.num_imgs = len(self.image_ids)
@@ -396,7 +406,7 @@ class FrozenRecon:
                                         weight_decay=0)
         else:
             self.args.pseudo_training = True
-            self.args.total_iters = 50
+            self.args.iters_per_epoch = 50
             self.args.epochs = 1
             param_pseudo = torch.tensor([1.]).cuda().repeat(self.num_imgs)
             param_pseudo.requires_grad = True
@@ -440,20 +450,20 @@ class FrozenRecon:
                 lr_set_cnt += 1
                 print('Depth lr set...')
                 
-            h_new = self.h_new; w_new = self.w_new
+            h_optim = self.h_optim; w_optim = self.w_optim
 
             # 2. optimization
-            progress_bar = tqdm(range(0, self.args.total_iters), desc="Training progress of epoch %s" %epoch)
-            for t in range(self.args.total_iters):
+            progress_bar = tqdm(range(0, self.args.iters_per_epoch), desc="Training progress of epoch %s" %epoch)
+            for t in range(self.args.iters_per_epoch):
                 time1 = time.time()
                 
                 # 2.1 compute camera intrinsic
-                w_ratio = self.w_new / self.w
-                h_ratio = self.h_new / self.h
+                w_ratio = self.w_optim / self.w
+                h_ratio = self.h_optim / self.h
                 if not self.args.gt_intrinsic_flag:
-                    fx = self.optimize_params['focal_length_ratio'] * (self.w_new / self.w) * ((self.h + self.w) / 2)
-                    fy = self.optimize_params['focal_length_ratio'] * (self.h_new / self.h) * ((self.h + self.w) / 2)
-                    intrinsics = torch.tensor([[[0, 0, w_new/2], [0, 0, h_new/2], [0, 0, 1]]]).cuda().double()
+                    fx = self.optimize_params['focal_length_ratio'] * (self.w_optim / self.w) * ((self.h + self.w) / 2)
+                    fy = self.optimize_params['focal_length_ratio'] * (self.h_optim / self.h) * ((self.h + self.w) / 2)
+                    intrinsics = torch.tensor([[[0, 0, w_optim/2], [0, 0, h_optim/2], [0, 0, 1]]]).cuda().double()
                     intrinsics[0, 0:1, 0:1] = fx
                     intrinsics[0, 1:2, 1:2] = fy
                 else:
@@ -531,7 +541,7 @@ class FrozenRecon:
                 assert tgt_ids.shape == ref_ids.shape
                 time4 = time.time()
 
-                sample_num = int(w_new * h_new * self.args.sample_pix_ratio) 
+                sample_num = int(w_optim * h_optim * self.args.sample_pix_ratio) 
                 if lietorch_flag:
                     valid_mask = (ref_ids >= 0) & (ref_ids <= self.num_imgs-1) & \
                         ((torch.isnan(poses_global_SE3.data[tgt_ids.clamp(min=0, max=self.num_imgs-1)]) + torch.isnan(poses_global_SE3.data[ref_ids.clamp(min=0, max=self.num_imgs-1)])).sum(dim=1) == 0)
@@ -543,11 +553,11 @@ class FrozenRecon:
                 n = ref_ids.shape[0]
 
                 # 2.5 sample pixels from coords
-                coords_x = torch.arange(0, w_new).float().cuda()[None, None, :].repeat(n, h_new, 1).view(n, -1)
-                coords_y = torch.arange(0, h_new).float().cuda()[None, :, None].repeat(n, 1, w_new).view(n, -1)
+                coords_x = torch.arange(0, w_optim).float().cuda()[None, None, :].repeat(n, h_optim, 1).view(n, -1)
+                coords_y = torch.arange(0, h_optim).float().cuda()[None, :, None].repeat(n, 1, w_optim).view(n, -1)
 
                 valid_imgs_num = coords_x.shape[0]
-                coords_mask_index = torch.randperm(h_new * w_new)[:sample_num].repeat(valid_imgs_num, 1).cuda()
+                coords_mask_index = torch.randperm(h_optim * w_optim)[:sample_num].repeat(valid_imgs_num, 1).cuda()
                 coords_mask = (coords_x != coords_x)
                 coords_mask.scatter_(1, coords_mask_index, 1)
 
@@ -588,14 +598,14 @@ class FrozenRecon:
 
                 # 2.8 warp from reference images to target images and compute losses
                 tgt_sample_coords = torch.stack([coords_x, coords_y], dim=2)[:, :, None, :] # [n(filtered), sampled_num, 1, 2]
-                tgt_sample_coords[..., 0] = 2 * tgt_sample_coords[..., 0] / (w_new - 1) - 1
-                tgt_sample_coords[..., 1] = 2 * tgt_sample_coords[..., 1] / (h_new - 1) - 1
+                tgt_sample_coords[..., 0] = 2 * tgt_sample_coords[..., 0] / (w_optim - 1) - 1
+                tgt_sample_coords[..., 1] = 2 * tgt_sample_coords[..., 1] / (h_optim - 1) - 1
                 
                 if self.args.gt_intrinsic_flag:
                     intrinsics_tgt = intrinsics[tgt_ids]
                 else:
                     intrinsics_tgt = intrinsics
-                depth_computed_points, projected_x, projected_y = depth_project(coords_x, coords_y, metric_depths[tgt_ids].view(tgt_ids.numel(), 1, -1), intrinsics_tgt, poses, coords_mask, (h_new, w_new))
+                depth_computed_points, projected_x, projected_y = depth_project(coords_x, coords_y, metric_depths[tgt_ids].view(tgt_ids.numel(), 1, -1), intrinsics_tgt, poses, coords_mask, (h_optim, w_optim))
                 ## valid_mask of projection
                 valid_mask = (projected_x >= -0.95) & (projected_x <= 0.95) & (projected_y >= -0.95) & (projected_y <= 0.95)
                 ## tgt color
@@ -665,7 +675,7 @@ class FrozenRecon:
                         print_info["pseudo_training_loss"] = loss_pseudo.tolist()
                     progress_bar.set_postfix(print_info)
                     progress_bar.update(self.args.print_iters)
-                if t == (self.args.total_iters - 1):
+                if t == (self.args.iters_per_epoch - 1):
                     progress_bar.close()
 
                 pc_weight = self.args.loss_pc_weight
@@ -681,15 +691,22 @@ class FrozenRecon:
                 time7 = time.time()
 
                 # 2.9 save for the latest iteration
-                if t == (self.args.total_iters - 1) and (epoch == self.args.epochs - 1):
-                    resized_height_width = np.array([self.h_new, self.w_new])
+                if t == (self.args.iters_per_epoch - 1) and (epoch == self.args.epochs - 1):
+                    resized_height_width = np.array([self.h_optim, self.w_optim])
                     if lietorch_flag:
                         poses_computed_global = poses_global_SE3.matrix()
                     
+                    rgb_imgs = self.rgb_imgs_recon_cpu.permute(0, 2, 3, 1) * 255. # [n, h, w, 3]
+
+                    if intrinsics.shape[0] == 1:
+                        intrinsics = intrinsics.repeat(rgb_imgs.shape[0], 1, 1)
+                    intrinsics[:, 0, 0] /= self.recon_ratio; intrinsics[:, 0, 2] /= self.recon_ratio; intrinsics[:, 1, 1] /= self.recon_ratio; intrinsics[:, 1, 2] /= self.recon_ratio
+                    
                     if self.args.gt_depth_flag:
-                        optimized_depth = self.gt_depths_wo_resize_cpu.squeeze()
+                        optimized_depth = self.gt_depths_recon_cpu.squeeze()
                     else:
-                        metric_depths_global = self.mono_depths_wo_resize * self.optimize_params['scale_map'][:, None, None, None].abs() + self.optimize_params['shift_map'][:, None, None, None]
+                        
+                        metric_depths_global = self.mono_depths_recon * self.optimize_params['scale_map'][:, None, None, None].abs() + self.optimize_params['shift_map'][:, None, None, None]
                         metric_depths_global = metric_depths_global.squeeze()
                         metric_depths_global += 1e-6
                         
@@ -699,12 +716,6 @@ class FrozenRecon:
 
                         k_para = self.args.k_para
                         optimized_depth = sparse_depth_lwlr_batch(metric_depths_global, sparse_guided_depth, down_sample_scale=32, k_para=k_para, sample_num=sparse_guided_depth[0][sparse_guided_depth[0]>0].numel(), device=torch.device('cuda')).squeeze() # lwlr
-
-                    w_ratio_recon = self.w_new / optimized_depth.shape[-1]; h_ratio_recon = self.h_new / optimized_depth.shape[-2]
-                    intrinsics[:, 0, 0] /= w_ratio_recon; intrinsics[:, 0, 2] /= w_ratio_recon; intrinsics[:, 1, 1] /= h_ratio_recon; intrinsics[:, 1, 2] /= h_ratio_recon
-                    if intrinsics.shape[0] == 1:
-                        intrinsics = intrinsics.repeat(optimized_depth.shape[0], 1, 1)
-                    rgb_imgs = F.interpolate(self.rgb_imgs_wo_resize_cpu, (optimized_depth.shape[-2], optimized_depth.shape[-1]), mode='bilinear').permute(0, 2, 3, 1) * 255. # [n, h, w, 3]
                     
                     optimized_params = dict(
                         rgb_imgs = rgb_imgs.numpy().astype(np.uint8),
@@ -812,10 +823,11 @@ if __name__ == '__main__':
     parser.add_argument('--img_root', help='The path to in_the_wild images for optimization.', type=str, default=None)
 
     parser.add_argument('--recon_voxel_size', help='Voxel size of reconstruction.', type=float, default=0.1)
-    parser.add_argument('--resize_shape', help='Resize images for fast optimization.', type=int, nargs='+', default=[120, 160])
+    parser.add_argument('--resize_shape', help='The shape of shortest side for optimization.', type=int, default=150)
+    parser.add_argument('--recon_shape', help='The shape of shortest side for reconstruction, e.g., 480', type=int, default=480) 
     parser.add_argument('--angle_thr', help='Angle threshold of keyframe selection strategy.', type=float, default=np.pi/4)
     parser.add_argument('--k_para', help='The k parameter of lwlr function.', type=int, default=50) # seems does not matter so much
-    parser.add_argument('--total_iters', help='Total iterations for each epoch. 2000 is usually more than enough, and should not be too small.', type=int, default=2000)
+    parser.add_argument('--iters_per_epoch', help='Iterations for each epoch. 2000 is usually more than enough, and should not be too small.', type=int, default=2000)
 
     parser.add_argument('--pose_lr_t', help="hyperparameter of lr.", type=float, nargs='+', default=[1e-2, 1e-3, 1e-3])
     parser.add_argument('--pose_lr_r', help="hyperparameter of lr.", type=float, nargs='+', default=[1e-3, 1e-4, 1e-4])
@@ -832,7 +844,7 @@ if __name__ == '__main__':
     parser.add_argument('--outdoor_scenes', help='Whether to optimize outdoor scenes. (Used for filtering out sky regions and car (dynamic objects).)', action='store_true')
 
     # gt args
-    parser.add_argument('--gt_root', help='Path to ground-truth data root, change it.', type=str, default='/mnt/nas/share/home/xugk/data/') # NOTE: change it
+    parser.add_argument('--gt_root', help='Path to ground-truth data root, change it.', type=str, default='/mnt/nas/share/home/xugk/data/')
     parser.add_argument('--gt_depth_flag', help='Whether to use gt depth straightforwardly.', action='store_true')
     parser.add_argument('--gt_pose_flag', help='Whether to use gt poses straightforwardly.', action='store_true')
     parser.add_argument('--gt_intrinsic_flag', help='Whether to use gt intrinsic straightforwardly.', action='store_true')
@@ -854,7 +866,7 @@ if __name__ == '__main__':
     parser.add_argument('--print_iters', help='The frequence of printing.', type=int, default=1)
     args = parser.parse_args()
 
-    if not args.save_suffix.startswith('_'):
+    if (args.save_suffix != '') and (not args.save_suffix.startswith('_')):
         args.save_suffix = '_' + args.save_suffix
 
     scene_names = []
@@ -863,7 +875,7 @@ if __name__ == '__main__':
     # NYU
     if args.dataset_name == 'NYUDepthVideo':
         args.gt_depth_scale = 5000.
-        base_root = '/mnt/nas/share/home/xugk/data/NYUDepthVideo/'
+        base_root = osp.join(args.gt_root, args.dataset_name)
         for scene_name in os.listdir(base_root):
             if scene_name == 'annotations':
                 continue
@@ -873,7 +885,7 @@ if __name__ == '__main__':
     # ScanNet
     elif args.dataset_name == 'scannet_test_div_5':
         args.gt_depth_scale = 1000.
-        base_root = '/mnt/nas/share/home/xugk/data/scannet_test_div_5/'
+        base_root = osp.join(args.gt_root, args.dataset_name)
         for scene_id in range(7, 21):
             scene_names.append('scene07%02d_00' %scene_id)
             img_roots.append(osp.join(base_root, 'scene07%02d_00/color' %scene_id))
@@ -881,7 +893,7 @@ if __name__ == '__main__':
     # 7scenes
     elif args.dataset_name == '7scenes_new_seq1':
         args.gt_depth_scale = 1000.
-        base_root = '/mnt/nas/share/home/xugk/data/7scenes_new_seq1/'
+        base_root = osp.join(args.gt_root, args.dataset_name)
         for scene_name in os.listdir(base_root):
             scene_names.append(scene_name)
             img_roots.append(osp.join(base_root + scene_name + '/rgb'))
@@ -889,7 +901,7 @@ if __name__ == '__main__':
     # TUM
     elif args.dataset_name == 'TUM':
         args.gt_depth_scale = 5000.
-        base_root = '/mnt/nas/share/home/xugk/data/TUM/'
+        base_root = osp.join(args.gt_root, args.dataset_name)
         for scene_name in os.listdir(base_root):
             if not osp.isdir(osp.join(base_root, scene_name)):
                 continue
@@ -901,7 +913,7 @@ if __name__ == '__main__':
     # KITTI
     elif args.dataset_name == 'KITTI':
         args.gt_depth_scale = 256.
-        base_root = '/mnt/nas/datasets2/MetricDepth/kitti/kitti/'
+        base_root = osp.join(args.gt_root, args.dataset_name)
         scene_names = [
             "2011_09_26_drive_0001_sync",
             "2011_09_26_drive_0009_sync",

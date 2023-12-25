@@ -69,7 +69,7 @@ class BaseLoader:
         if not self.return_full:
             del self.info_dict['images_full']
             del self.info_dict['depths_full']
-            del self.info_dict['intrinsic_full']
+            del self.info_dict['intrinsics_full']
             del self.info_dict['poses_full']
         
         return self.info_dict
