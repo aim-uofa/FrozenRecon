@@ -276,7 +276,7 @@ class FrozenRecon:
                 gt_loader = SevenScenes_Loader(osp.join(args.gt_root, args.dataset_name))
             elif self.args.dataset_name == 'TUM':
                 gt_loader = TUM_Loader(osp.join(args.gt_root, args.dataset_name))
-            elif self.args.dataset_name == 'KITTI':
+            elif self.args.dataset_name == 'kitti':
                 gt_loader = KITTIDepthVideo_Loader(osp.join(args.gt_root, args.dataset_name), scene_names_list=[args.scene_name])
             else:
                 raise ValueError
@@ -799,11 +799,11 @@ def recon(args, optimized_params, voxel_size=0.1):
     bs, h, w = depths.shape
     depths = depths.squeeze()
     if args.outdoor_scenes and mmseg_import_flag:
-        invalid_masks = optimized_params['invalid_masks']
+        invalid_masks = torch.from_numpy(optimized_params['invalid_masks'])
         invalid_masks = F.interpolate(invalid_masks, (images.shape[1], images.shape[2]), mode='nearest')
-        invalid_masks = invalid_masks.detach().cpu().numpy()
+        invalid_masks = invalid_masks.detach().cpu().numpy().squeeze()
         assert len(invalid_masks.shape) == 3
-        depths[invalid_masks[optimized_params['optimized_image_indexes']] == 1] = 0
+        depths[invalid_masks == 1] = 0
 
     tsdf = TSDFFusion()
     print('tsdf fusing the pred pcd...')
@@ -839,7 +839,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss_gc_weight', help="hyperparameter of losses.", type=float, nargs='+', default=[0.5, 1, 0.1])
     parser.add_argument('--loss_norm_weight', help="hyperparameter of losses.", type=float, nargs='+', default=[0.01, 0.1, 0.1])
 
-    parser.add_argument('--dataset_name', help='Dataset name. Ignore it when input images or videos in the wild.', type=str, choices=['NYUDepthVideo', 'scannet_test_div_5', '7scenes_new_seq1', 'TUM', 'KITTI'], default=None)
+    parser.add_argument('--dataset_name', help='Dataset name. Ignore it when input images or videos in the wild.', type=str, choices=['NYUDepthVideo', 'scannet_test_div_5', '7scenes_new_seq1', 'TUM', 'kitti'], default=None)
     parser.add_argument('--scene_name', help='If None, optimize all scenes. If set, only optimize one scene.', type=str, default=None)
     parser.add_argument('--outdoor_scenes', help='Whether to optimize outdoor scenes. (Used for filtering out sky regions and car (dynamic objects).)', action='store_true')
 
@@ -911,7 +911,7 @@ if __name__ == '__main__':
             img_roots.append(osp.join(base_root + scene_name + '/rgb'))
     
     # KITTI
-    elif args.dataset_name == 'KITTI':
+    elif args.dataset_name == 'kitti':
         args.gt_depth_scale = 256.
         base_root = osp.join(args.gt_root, args.dataset_name)
         scene_names = [
@@ -950,6 +950,9 @@ if __name__ == '__main__':
         img_roots.append('') # pseudo parameters
     else:
         raise ValueError('Error of args.dataset_name')
+    
+    print('scene_names :', scene_names)
+    print('img_roots :', img_roots)
     
     for (scene_name, img_root) in zip(scene_names, img_roots):
         if (args.scene_name is not None) and (scene_name != args.scene_name):

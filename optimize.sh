@@ -1,4 +1,4 @@
-conda activate frozenrecon
+# conda activate frozenrecon
 
 # # change GT_ROOT if you would like to use gt priors
 # export GT_ROOT='PATH_TO_GT_DATA_ROOT'
@@ -22,4 +22,4 @@ conda activate frozenrecon
 python src/optimize.py --img_root PATH_TO_IMG_FOLDER --scene_name SCENE_NAME
 
 # # Outdoor Scenes
-# python src/optimize.py --dataset_name NYUDepthVideo --scene_name SCENE_NAME --gt_root $GT_ROOT --gt_intrinsic_flag --scene_name "2011_09_26_drive_0001_sync" --outdoor_scenes 
+# python src/optimize.py --dataset_name KITTI --gt_intrinsic_flag --scene_name 2011_09_26_drive_0001_sync --outdoor_scenes

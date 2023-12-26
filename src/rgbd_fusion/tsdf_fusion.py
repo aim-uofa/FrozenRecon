@@ -27,7 +27,7 @@ class TSDFFusion:
             depth_im = np.squeeze(depths[i])
             if edge_mask:
                 # valid_mask
-                valid_mask = np.zeros_like(depth_im).astype(np.bool)
+                valid_mask = np.zeros_like(depth_im).astype(np.bool_)
                 valid_mask[20:h-20, 20:w-20] = True
                 depth_im[~valid_mask] = 0
 
@@ -48,7 +48,7 @@ class TSDFFusion:
 
             if edge_mask:
                 # valid_mask
-                valid_mask = np.zeros_like(depth_im).astype(np.bool)
+                valid_mask = np.zeros_like(depth_im).astype(np.bool_)
                 valid_mask[20:h-20, 20:w-20] = True
                 depth_im[~valid_mask] = 0
             

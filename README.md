@@ -38,13 +38,14 @@ git clone --recursive https://github.com/aim-uofa/FrozenRecon.git
 cd FrozenRecon
 conda create -y -n frozenrecon python=3.8
 conda activate frozenrecon
-pip install torch==1.8.0+cu111 torchvision==0.9.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 -f https://download.pytorch.org/whl/torch_stable.html # pytorch 1.7.1 for SegFormer
 pip install -r requirements.txt
 
 # (Optional) For outdoor scenes, we recommand to mask the sky regions and cars (potential dynamic objects)
-pip install --upgrade mmcv-full==1.3.0 -f https://download.openmmlab.com/mmcv/dist/cu111/torch180/index.html
-pip install "mmsegmentation==0.11.0"
 pip install timm==0.3.2
+pip install --upgrade mmcv-full==1.2.7 -f https://download.openmmlab.com/mmcv/dist/cu110/torch171/index.html
+# pip install "mmsegmentation==0.11.0"
+pip install ipython attr 
 git clone https://github.com/NVlabs/SegFormer.git
 cd SegFormer && pip install -e . & cd ..
 # After installing SegFormer, please downlaod segformer.b3.512x512.ade.160k.pth checkpoint following https://github.com/NVlabs/SegFormer, and place it in SegFormer/
