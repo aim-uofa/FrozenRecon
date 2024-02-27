@@ -880,7 +880,7 @@ if __name__ == '__main__':
             if scene_name == 'annotations':
                 continue
             scene_names.append(scene_name)
-            img_roots.append(osp.join(base_root + scene_name + '/rgb'))
+            img_roots.append(osp.join(base_root, scene_name, 'rgb'))
     
     # ScanNet
     elif args.dataset_name == 'scannet_test_div_5':
