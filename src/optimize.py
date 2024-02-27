@@ -880,7 +880,7 @@ if __name__ == '__main__':
             if scene_name == 'annotations':
                 continue
             scene_names.append(scene_name)
-            img_roots.append(osp.join(base_root + scene_name + '/rgb'))
+            img_roots.append(osp.join(base_root, scene_name, 'rgb'))
     
     # ScanNet
     elif args.dataset_name == 'scannet_test_div_5':
@@ -896,7 +896,7 @@ if __name__ == '__main__':
         base_root = osp.join(args.gt_root, args.dataset_name)
         for scene_name in os.listdir(base_root):
             scene_names.append(scene_name)
-            img_roots.append(osp.join(base_root + scene_name + '/rgb'))
+            img_roots.append(osp.join(base_root, scene_name, 'rgb'))
 
     # TUM
     elif args.dataset_name == 'TUM':
@@ -908,7 +908,7 @@ if __name__ == '__main__':
             if scene_name == 'annotations':
                 continue
             scene_names.append(scene_name)
-            img_roots.append(osp.join(base_root + scene_name + '/rgb'))
+            img_roots.append(osp.join(base_root, scene_name, 'rgb'))
     
     # KITTI
     elif args.dataset_name == 'kitti':
