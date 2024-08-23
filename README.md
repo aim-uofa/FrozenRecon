@@ -5,14 +5,14 @@
 [Guangkai Xu](https://github.com/guangkaixu/)<sup>1*</sup>, &nbsp; 
 [Wei Yin](https://yvanyin.net/)<sup>2*</sup>, &nbsp; 
 [Hao Chen](https://stan-haochen.github.io/)<sup>3</sup>, &nbsp;
-[Chunhua Shen](https://cshen.github.io/)<sup>3,4</sup>, &nbsp;
+[Chunhua Shen](https://cshen.github.io/)<sup>3</sup>, &nbsp;
 [Kai Cheng](https://cklibra.github.io/)<sup>1</sup>, &nbsp;
 [Feng Zhao](https://scholar.google.co.uk/citations?user=r6CvuOUAAAAJ&hl=en/)<sup>1</sup>
 
 <sup>1</sup>University of Science and Technology of China &nbsp;&nbsp; 
 <sup>2</sup>DJI Technology &nbsp;&nbsp; 
-<sup>3</sup>Zhejiang University &nbsp;&nbsp; 
-<sup>4</sup>Ant Group
+<sup>3</sup>Zhejiang University, China
+
 
 ### [Project Page](https://aim-uofa.github.io/FrozenRecon/) | [arXiv](https://arxiv.org/abs/2308.05733) | [Paper](https://openaccess.thecvf.com/content/ICCV2023/papers/Xu_FrozenRecon_Pose-free_3D_Scene_Reconstruction_with_Frozen_Depth_Models_ICCV_2023_paper.pdf) | [Supplementary](https://openaccess.thecvf.com/content/ICCV2023/supplemental/Xu_FrozenRecon_Pose-free_3D_ICCV_2023_supplemental.pdf)
 
@@ -100,13 +100,13 @@ python src/optimize.py --dataset_name NYUDepthVideo --scene_name SCENE_NAME --gt
 
 ## 🎫 License
 For non-commercial academic use, this project is licensed under [the 2-clause BSD License](https://opensource.org/license/bsd-2-clause). 
-For commercial use, please contact [Chunhua Shen](chhshen@gmail.com).
+For commercial use, please contact [Chunhua Shen](mailto:chhshen@gmail.com).
 
 
 
 ## 🖊️ Citation
 
-If you find this project useful in your research, please consider cite:
+If you find this project useful in your research, please cite:
 
 
 ```BibTeX
