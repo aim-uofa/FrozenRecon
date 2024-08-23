@@ -14,7 +14,7 @@
 <sup>3</sup>Zhejiang University, China
 
 
-### [Project Page](https://aim-uofa.github.io/FrozenRecon/)   [arXiv](https://arxiv.org/abs/2308.05733)   [Paper](https://openaccess.thecvf.com/content/ICCV2023/papers/Xu_FrozenRecon_Pose-free_3D_Scene_Reconstruction_with_Frozen_Depth_Models_ICCV_2023_paper.pdf)   [Supplementary](https://openaccess.thecvf.com/content/ICCV2023/supplemental/Xu_FrozenRecon_Pose-free_3D_ICCV_2023_supplemental.pdf)
+### [Project Page](https://aim-uofa.github.io/FrozenRecon/),   [arXiv](https://arxiv.org/abs/2308.05733)   [Paper],(https://openaccess.thecvf.com/content/ICCV2023/papers/Xu_FrozenRecon_Pose-free_3D_Scene_Reconstruction_with_Frozen_Depth_Models_ICCV_2023_paper.pdf)   [Supplementary](https://openaccess.thecvf.com/content/ICCV2023/supplemental/Xu_FrozenRecon_Pose-free_3D_ICCV_2023_supplemental.pdf)
 
 #### ⏳ Reconstruct your pose-free video with 🧊 FrozenRecon in around a quarter of an hour! ⌛
 </div>
